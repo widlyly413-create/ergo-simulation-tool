@@ -7,7 +7,10 @@ import matplotlib.patches as patches
 from shapely.geometry import Polygon
 import os
 import matplotlib.font_manager as fm
-
+import streamlit as st
+import streamlit.components.v1 as components
+import numpy as np
+from shapely.geometry import Polygon
 # ==========================================
 # 0. 页面配置与 CSS
 # ==========================================
@@ -171,29 +174,25 @@ with col_img:
     components.html(svg_html, height=400) # 这里高度稍微留一点余量
 
 # ==========================================
-# 6. 平面布局图生成
+# 6. 平面布局图生成 (纯 SVG 矢量渲染技术)
 # ==========================================
 st.markdown("### 🎯 3. XY轴：动态包络面与功能落点布局")
 st.markdown('<div class="card">', unsafe_allow_html=True)
+st.write("基于 Squires 算法与几何中点法则，系统自动规划出大漆核心工具的最佳摆放区域。采用纯矢量 SVG 渲染。")
+
 if st.button("生成/刷新 布局动线解析图", type="primary", use_container_width=True):
-    with st.spinner("正在解算多边形边界与落点坐标..."):
-        fig, ax = plt.subplots(figsize=(10, 7))
-        title = f"双臂作业包络面及功能落点区\n(La={L_a:.1f}, Ra={R_a:.1f}, Fa={F_a:.1f}, Sa={S_a:.1f})"
+    with st.spinner("正在解算空间几何与矢量节点..."):
         
+        # 1. 基础参数与几何中点法则 (保留你的核心数学逻辑)
         shoulder_y = -50
         B_a = R_a + F_a
         R_max = L_a + B_a
         theta_0 = 65 * np.pi / 180
 
-        ax.set_xlim(-900, 900)
-        ax.set_ylim(-200, 1000)
-        ax.set_aspect('equal')
-        ax.grid(True, linestyle='--', alpha=0.3, zorder=1)
-        ax.set_title(title, fontsize=12, fontweight='bold', pad=15)
-
         ex, ey = 50, 90
         theta_semi = np.linspace(0, np.pi, 200)
 
+        # 构造包络面多边形
         def create_poly(cx, cy, r):
             arc_x = cx + r * np.cos(theta_semi)
             arc_y = cy + r * np.sin(theta_semi)
@@ -206,15 +205,6 @@ if st.button("生成/刷新 布局动线解析图", type="primary", use_containe
         p4 = create_poly(-S_a / 2, shoulder_y, R_max)
         union_max = p1.union(p2).union(p3).union(p4)
 
-        if union_max.geom_type == 'Polygon':
-            x, y = union_max.exterior.xy
-            ax.fill(x, y, color='lightgreen', alpha=0.25, zorder=2)
-            ax.plot(x, y, color='green', linestyle='-.', alpha=0.5, zorder=3)
-        else:
-            for g in union_max.geoms:
-                x, y = g.exterior.xy
-                ax.fill(x, y, color='lightgreen', alpha=0.25, zorder=2)
-
         theta_full = np.linspace(0, 105 * np.pi / 180, 200)
         x_cR = S_a / 2 + L_a * np.cos(theta_full) + B_a * np.cos(theta_0 + 73 * theta_full / 90)
         y_cR = shoulder_y + L_a * np.sin(theta_full) + B_a * np.sin(theta_0 + 73 * theta_full / 90)
@@ -226,14 +216,7 @@ if st.button("生成/刷新 布局动线解析图", type="primary", use_containe
                                         np.concatenate([[shoulder_y]*3, y_cL, [shoulder_y]]))))
         union_sq = sq_R.union(sq_L)
 
-        if union_sq.geom_type == 'Polygon':
-            x, y = union_sq.exterior.xy
-            ax.fill(x, y, color='lightblue', alpha=0.5, zorder=4)
-        else:
-            for g in union_sq.geoms:
-                ax.fill(*g.exterior.xy, color='lightblue', alpha=0.5, zorder=4)
-
-        # 核心落点区
+        # 核心落点区坐标
         X_op, Y_op = 0, shoulder_y + R_a + 50
         theta_abd = np.radians(15)
         gamma = np.radians(25)
@@ -252,14 +235,73 @@ if st.button("生成/刷新 布局动线解析图", type="primary", use_containe
             (X_tr, Y_tr, '#FF7F0E', '转换区'),
             (X_nu, Y_nu, '#9467BD', '非取用区')
         ]
-        for X, Y, color, label in zones:
-            ax.add_patch(patches.Circle((X, Y), 90, color=color, alpha=0.2, zorder=9))
-            ax.plot(X, Y, marker='P', color=color, markersize=8, zorder=10)
-            ax.text(X, Y + 105, label, color=color, fontsize=10, fontweight='bold', ha='center', zorder=11)
 
-        ax.axhline(0, color='#8C1C13', linestyle='-', lw=2, zorder=6, label='工作台边缘')
-        ax.plot([0], [shoulder_y], 'kX', markersize=8, zorder=12, label='胸廓原点')
-        ax.legend(loc='upper right')
-        
-        st.pyplot(fig)
+        # ==========================================
+        # 2. 将 Shapely 坐标映射到 SVG 坐标系
+        # ==========================================
+        # SVG 视口设置
+        svg_w, svg_h = 800, 600
+        # 比例尺：物理尺寸(mm)到像素(px)的映射
+        scale = 0.4
+        # 原点偏移：将 0,0 放在 SVG 画布底部的中心
+        center_x = svg_w / 2
+        base_y = svg_h - 100 
+
+        def geom_to_svg_path(geom):
+            """将 Shapely 多边形转换为 SVG 坐标点字符串"""
+            paths = []
+            if geom.geom_type == 'Polygon':
+                geoms = [geom]
+            else:
+                geoms = geom.geoms
+            
+            for g in geoms:
+                x, y = g.exterior.xy
+                # Y轴翻转：屏幕坐标Y向下，物理坐标Y向上
+                pts = [f"{xi * scale + center_x},{base_y - yi * scale}" for xi, yi in zip(x, y)]
+                paths.append(" ".join(pts))
+            return paths
+
+        max_paths = geom_to_svg_path(union_max)
+        sq_paths = geom_to_svg_path(union_sq)
+
+        # 构建 SVG HTML 字符串
+        svg_content = f"""
+        <div style="background: #FDFBF7; border-radius: 8px; border-top: 4px solid #8C1C13; box-shadow: 0 2px 12px rgba(0,0,0,0.05); width: 100%; display: flex; justify-content: center; overflow-x: auto;">
+            <svg width="{svg_w}" height="{svg_h}" viewBox="0 0 {svg_w} {svg_h}" xmlns="http://www.w3.org/2000/svg" style="font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', sans-serif;">
+                
+                {"".join([f'<polygon points="{pts}" fill="#90EE90" fill-opacity="0.3" stroke="gray" stroke-width="1.5" stroke-dasharray="5,5" />' for pts in max_paths])}
+                
+                {"".join([f'<polygon points="{pts}" fill="#ADD8E6" fill-opacity="0.6" stroke="#1f77b4" stroke-width="2" />' for pts in sq_paths])}
+
+                """
+
+        # 添加落点圆圈与文字
+        R_zone_svg = 100 * scale
+        for X, Y, color, label in zones:
+            cx = X * scale + center_x
+            cy = base_y - Y * scale
+            
+            svg_content += f"""
+                <circle cx="{cx}" cy="{cy}" r="{R_zone_svg}" fill="{color}" fill-opacity="0.15" stroke="{color}" stroke-width="2" stroke-dasharray="4,4"/>
+                <circle cx="{cx}" cy="{cy}" r="4" fill="{color}"/>
+                <text x="{cx}" y="{cy - R_zone_svg - 10}" fill="{color}" font-size="14" font-weight="bold" text-anchor="middle">{label}</text>
+            """
+
+        # 添加参考线与原点
+        chest_y = base_y - (shoulder_y * scale)
+        svg_content += f"""
+                <line x1="50" y1="{base_y}" x2="{svg_w - 50}" y2="{base_y}" stroke="#8C1C13" stroke-width="2" />
+                <text x="60" y="{base_y - 10}" fill="#8C1C13" font-size="12" font-weight="bold">工作台边缘</text>
+
+                <line x1="{center_x - 150}" y1="{chest_y}" x2="{center_x + 150}" y2="{chest_y}" stroke="gray" stroke-width="1.5" stroke-dasharray="4,4" />
+                <circle cx="{center_x}" cy="{chest_y}" r="5" fill="#121212"/>
+                <text x="{center_x + 10}" y="{chest_y + 4}" fill="#121212" font-size="12">胸廓正中</text>
+            </svg>
+        </div>
+        """
+
+        # 使用组件渲染 SVG
+        components.html(svg_content, height=svg_h + 20)
+
 st.markdown('</div>', unsafe_allow_html=True)
