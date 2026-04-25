@@ -74,7 +74,6 @@ st.markdown("""
         font-family: 'Georgia', serif;
     }
 
-    /* 优化侧边栏和按钮 */
     .stButton>button {
         border-radius: 8px;
         font-weight: 600;
@@ -83,7 +82,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 统一的高度精确度函数
 def round_to_half_cm(value_mm):
     return round(value_mm / 5.0) * 5
 
@@ -116,15 +114,15 @@ with col_a:
 with col_b:
     st.info("请输入作业者的身体静态尺寸（单位：mm）")
     c1, c2, c3, c4 = st.columns(4)
-    with c1: h_popliteal = st.number_input("坐姿腘高", 300, 600, 400, step=5, help="小腿腘窝至地面的高度")
-    with c2: h_elbow = st.number_input("坐姿肘高", 100, 500, 250, step=5, help="坐姿状态下肘部至座面的高度")
+    with c1: h_popliteal = st.number_input("坐姿腘高", 300, 600, 400, step=5)
+    with c2: h_elbow = st.number_input("坐姿肘高", 100, 500, 250, step=5)
     with c3: L_a = st.number_input("上臂长", 200.0, 500.0, 318.0, step=5.0)
     with c4: R_a = st.number_input("前臂长", 150.0, 400.0, 235.0, step=5.0)
     
     c5, c6, c7 = st.columns([1, 1, 2])
     with c5: S_a = st.number_input("肩宽", 300.0, 600.0, 419.0, step=5.0)
     with c6: F_a = st.number_input("手长(1/2)", 50.0, 150.0, 92.0, step=1.0)
-    with c7: st.write("") # 占位
+    with c7: st.write("")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
@@ -170,15 +168,15 @@ with col_text:
     """, unsafe_allow_html=True)
 
 with col_img:
-    scale = 0.28
+    scale_z = 0.28
     gy = 340 
-    sy = gy - (h_chair_final * scale)
-    dy = gy - (h_desk_final * scale)
-    ey = gy - (h_eye * scale)
-    ky = gy - (h_knee_clearance * scale)
-    wy = dy - (h_workpiece * scale)
+    sy = gy - (h_chair_final * scale_z)
+    dy = gy - (h_desk_final * scale_z)
+    ey = gy - (h_eye * scale_z)
+    ky = gy - (h_knee_clearance * scale_z)
+    wy = dy - (h_workpiece * scale_z)
 
-    svg_html = f"""
+    svg_html_z = f"""
     <div style="background: white; border-radius: 12px; border: 1px solid #F0E6D2; border-top: 5px solid #8C1C13; box-shadow: 0 4px 20px rgba(0,0,0,0.05); width: 100%; height: 420px; display: flex; align-items: center; justify-content: center;">
         <svg width="100%" height="400" viewBox="0 0 450 400" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -216,17 +214,17 @@ with col_img:
         </svg>
     </div>
     """
-    components.html(svg_html, height=440)
+    components.html(svg_html_z, height=440)
 
 # ==========================================
-# 6. 平面布局图生成 (纯 SVG 矢量渲染技术)
+# 6. 平面布局图生成 (带有 CAD 尺码标注的纯 SVG 渲染)
 # ==========================================
 st.markdown("### 🎯 3. XY轴：动态包络面与功能落点布局")
 st.markdown('<div class="card">', unsafe_allow_html=True)
-st.write("基于 Squires 算法与几何中点法则，系统自动规划出大漆核心工具的最佳摆放区域。采用纯矢量 SVG 渲染。")
+st.write("已加入 CAD 风格实时工程标注。拖动上方参数，下方尺寸界线与坐标点将自动重算并精确重绘。")
 
-if st.button("生成/刷新 布局动线解析图", type="primary", use_container_width=True):
-    with st.spinner("正在解算空间几何与矢量节点..."):
+if st.button("生成/刷新 布局动线解析图 (带工程尺码)", type="primary", use_container_width=True):
+    with st.spinner("正在解算空间几何与 CAD 尺码标注..."):
         
         shoulder_y = -50
         B_a = R_a + F_a
@@ -277,10 +275,15 @@ if st.button("生成/刷新 布局动线解析图", type="primary", use_containe
             (X_nu, Y_nu, '#9467BD', '非取用区')
         ]
 
-        svg_w, svg_h = 800, 600
-        scale = 0.4
+        # 提取用于尺码标注的多边形极限边界 Bounds
+        minx_max, miny_max, maxx_max, maxy_max = union_max.bounds
+        minx_sq, miny_sq, maxx_sq, maxy_sq = union_sq.bounds
+
+        # 加大画布空间，给四周留出绘制工程标尺的余地
+        svg_w, svg_h = 960, 750
+        scale = 0.35
         center_x = svg_w / 2
-        base_y = svg_h - 100 
+        base_y = svg_h - 150 
 
         def geom_to_svg_path(geom):
             paths = []
@@ -297,6 +300,36 @@ if st.button("生成/刷新 布局动线解析图", type="primary", use_containe
         max_paths = geom_to_svg_path(union_max)
         sq_paths = geom_to_svg_path(union_sq)
 
+        # 生成 CAD 水平标注线功能
+        def draw_dim_h(x1, x2, y, label, color="#666"):
+            sx1 = center_x + x1 * scale
+            sx2 = center_x + x2 * scale
+            sy = base_y - y * scale
+            return f"""
+                <g stroke="{color}" stroke-width="1.5">
+                    <line x1="{sx1}" y1="{sy}" x2="{sx2}" y2="{sy}" />
+                    <line x1="{sx1}" y1="{sy-6}" x2="{sx1}" y2="{sy+6}" />
+                    <line x1="{sx2}" y1="{sy-6}" x2="{sx2}" y2="{sy+6}" />
+                    <text x="{(sx1+sx2)/2}" y="{sy-10}" fill="{color}" font-size="14" font-weight="bold" text-anchor="middle" stroke="none">{label} {x2-x1:.0f} mm</text>
+                </g>
+            """
+
+        # 生成 CAD 垂直标注线功能
+        def draw_dim_v(x, y1, y2, label, color="#666", align="left"):
+            sx = center_x + x * scale
+            sy1 = base_y - y1 * scale
+            sy2 = base_y - y2 * scale
+            text_x = sx - 12 if align == "left" else sx + 12
+            anchor = "end" if align == "left" else "start"
+            return f"""
+                <g stroke="{color}" stroke-width="1.5">
+                    <line x1="{sx}" y1="{sy1}" x2="{sx}" y2="{sy2}" />
+                    <line x1="{sx-6}" y1="{sy1}" x2="{sx+6}" y2="{sy1}" />
+                    <line x1="{sx-6}" y1="{sy2}" x2="{sx+6}" y2="{sy2}" />
+                    <text x="{text_x}" y="{(sy1+sy2)/2 + 5}" fill="{color}" font-size="14" font-weight="bold" text-anchor="{anchor}" stroke="none">{label} {y2-y1:.0f} mm</text>
+                </g>
+            """
+
         svg_content = f"""
         <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid #F0E6D2; border-top: 5px solid #8C1C13; box-shadow: 0 4px 20px rgba(0,0,0,0.05); width: 100%; display: flex; justify-content: center; overflow-x: auto; padding: 20px 0;">
             <svg width="{svg_w}" height="{svg_h}" viewBox="0 0 {svg_w} {svg_h}" xmlns="http://www.w3.org/2000/svg" style="font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', sans-serif;">
@@ -304,20 +337,20 @@ if st.button("生成/刷新 布局动线解析图", type="primary", use_containe
                     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
                         <feOffset dx="2" dy="2" result="offsetblur" />
-                        <feComponentTransfer>
-                            <feFuncA type="linear" slope="0.3" />
-                        </feComponentTransfer>
-                        <feMerge>
-                            <feMergeNode />
-                            <feMergeNode in="SourceGraphic" />
-                        </feMerge>
+                        <feComponentTransfer><feFuncA type="linear" slope="0.3" /></feComponentTransfer>
+                        <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
                     </filter>
                 </defs>
                 
-                {"".join([f'<polygon points="{pts}" fill="#90EE90" fill-opacity="0.2" stroke="#4CAF50" stroke-width="1" stroke-dasharray="5,5" />' for pts in max_paths])}
+                {"".join([f'<polygon points="{pts}" fill="#90EE90" fill-opacity="0.15" stroke="#4CAF50" stroke-width="1.5" stroke-dasharray="5,5" />' for pts in max_paths])}
                 
                 {"".join([f'<polygon points="{pts}" fill="#ADD8E6" fill-opacity="0.4" stroke="#1f77b4" stroke-width="2" />' for pts in sq_paths])}
 
+                {draw_dim_h(minx_max, maxx_max, maxy_max + 130, "最大作业区总宽", "#2E7D32")}
+                {draw_dim_v(maxx_max + 140, 0, maxy_max, "最大可及深度", "#2E7D32", "right")}
+                
+                {draw_dim_h(minx_sq, maxx_sq, maxy_sq + 80, "最佳摆放区宽", "#1565C0")}
+                {draw_dim_v(minx_sq - 140, 0, maxy_sq, "最佳视距深度", "#1565C0", "left")}
         """
 
         R_zone_svg = 100 * scale
@@ -328,23 +361,24 @@ if st.button("生成/刷新 布局动线解析图", type="primary", use_containe
                 <g filter="url(#shadow)">
                     <circle cx="{cx}" cy="{cy}" r="{R_zone_svg}" fill="{color}" fill-opacity="0.1" stroke="{color}" stroke-width="2" stroke-dasharray="4,4"/>
                     <circle cx="{cx}" cy="{cy}" r="5" fill="{color}"/>
-                    <rect x="{cx - 40}" y="{cy - R_zone_svg - 25}" width="80" height="20" rx="4" fill="white" fill-opacity="0.8" />
-                    <text x="{cx}" y="{cy - R_zone_svg - 10}" fill="{color}" font-size="12" font-weight="bold" text-anchor="middle">{label}</text>
+                    <rect x="{cx - 55}" y="{cy - R_zone_svg - 45}" width="110" height="38" rx="4" fill="white" fill-opacity="0.9" stroke="{color}" stroke-width="1"/>
+                    <text x="{cx}" y="{cy - R_zone_svg - 28}" fill="{color}" font-size="13" font-weight="bold" text-anchor="middle">{label}</text>
+                    <text x="{cx}" y="{cy - R_zone_svg - 12}" fill="#555" font-size="11" text-anchor="middle">X:{X:.0f} Y:{Y:.0f}</text>
                 </g>
             """
 
         chest_y = base_y - (shoulder_y * scale)
         svg_content += f"""
                 <line x1="50" y1="{base_y}" x2="{svg_w - 50}" y2="{base_y}" stroke="#8C1C13" stroke-width="3" stroke-linecap="round" />
-                <text x="60" y="{base_y + 20}" fill="#8C1C13" font-size="12" font-weight="bold">工作台边缘 (Table Edge)</text>
+                <text x="60" y="{base_y + 20}" fill="#8C1C13" font-size="13" font-weight="bold">工作台边缘 (Table Edge / Y=0)</text>
 
-                <line x1="{center_x - 150}" y1="{chest_y}" x2="{center_x + 150}" y2="{chest_y}" stroke="#999" stroke-width="1" stroke-dasharray="4,4" />
+                <line x1="{center_x - 150}" y1="{chest_y}" x2="{center_x + 150}" y2="{chest_y}" stroke="#999" stroke-width="1.5" stroke-dasharray="4,4" />
                 <circle cx="{center_x}" cy="{chest_y}" r="6" fill="#121212" stroke="white" stroke-width="2" />
-                <text x="{center_x + 12}" y="{chest_y + 4}" fill="#121212" font-size="12" font-weight="bold">胸廓中心</text>
+                <text x="{center_x + 12}" y="{chest_y + 4}" fill="#121212" font-size="12" font-weight="bold">胸廓中心原点</text>
             </svg>
         </div>
         """
 
-        components.html(svg_content, height=svg_h + 20)
+        components.html(svg_content, height=svg_h + 30)
 
 st.markdown('</div>', unsafe_allow_html=True)
