@@ -1,15 +1,23 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import numpy as np
+import os
 from shapely.geometry import Polygon
+
+# 获取当前脚本所在目录
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ==========================================
 # 0. 页面配置与 CSS
 # ==========================================
 st.set_page_config(page_title="大漆工艺人机适配系统 - 微醺集", layout="wide")
 
-with open("ergo-simulation-tool-main/static/style.css", "r", encoding="utf-8") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+css_path = os.path.join(BASE_DIR, "static", "style.css")
+if os.path.exists(css_path):
+    with open(css_path, "r", encoding="utf-8") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+else:
+    st.error(f"未能找到 CSS 文件: {css_path}")
 
 
 def round_to_half_cm(value_mm):
