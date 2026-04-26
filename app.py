@@ -8,79 +8,9 @@ from shapely.geometry import Polygon
 # ==========================================
 st.set_page_config(page_title="大漆工艺人机适配系统 - 微醺集", layout="wide")
 
-st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Roboto:wght@300;400;700&display=swap');
+with open("ergo-simulation-tool-main/static/style.css", "r", encoding="utf-8") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-    .stApp { 
-        background-color: #FDFBF7; 
-        color: #2C2C2C; 
-        font-family: 'Roboto', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-    }
-    
-    h1, h2, h3 {
-        font-family: 'Noto Serif SC', serif;
-        font-weight: 700 !important;
-    }
-
-    .card { 
-        background-color: #FFFFFF; 
-        border-radius: 12px; 
-        padding: 24px; 
-        box-shadow: 0 4px 20px rgba(140, 28, 19, 0.08); 
-        margin-bottom: 24px; 
-        border: 1px solid #F0E6D2;
-        border-top: 5px solid #8C1C13; 
-        transition: transform 0.2s ease-in-out;
-    }
-    
-    .card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 25px rgba(140, 28, 19, 0.12);
-    }
-
-    .metric-container { 
-        display: flex; 
-        flex-wrap: wrap; 
-        gap: 15px; 
-        margin-top: 15px; 
-    }
-    
-    .metric-box { 
-        background: #FAF7F2; 
-        padding: 18px; 
-        border-radius: 10px; 
-        flex: 1; 
-        min-width: 140px;
-        text-align: center; 
-        border: 1px solid #EADDC3;
-        border-left: 4px solid #8C1C13; 
-    }
-    
-    .metric-title { 
-        font-size: 13px; 
-        color: #666; 
-        margin-bottom: 8px; 
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .metric-value { 
-        font-size: 24px; 
-        font-weight: 700; 
-        color: #8C1C13; 
-        margin: 0; 
-        font-family: 'Georgia', serif;
-    }
-
-    .stButton>button {
-        border-radius: 8px;
-        font-weight: 600;
-        letter-spacing: 1px;
-    }
-    </style>
-""", unsafe_allow_html=True)
 
 def round_to_half_cm(value_mm):
     return round(value_mm / 5.0) * 5
@@ -89,11 +19,11 @@ def round_to_half_cm(value_mm):
 # 2. 页面头部
 # ==========================================
 st.markdown("""
-<div style="text-align: center; padding: 40px 20px; background: linear-gradient(135deg, #1A1A1A 0%, #333333 100%); color: #FDFBF7; border-radius: 12px; margin-bottom: 30px; border-bottom: 6px solid #8C1C13; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-    <h1 style="color: #D4AF37; margin-bottom: 15px; font-size: 2.5rem; letter-spacing: 2px;">传统大漆工艺 · 人机适配数字化系统</h1>
-    <div style="width: 60px; height: 3px; background: #8C1C13; margin: 0 auto 20px auto;"></div>
-    <p style="color: #E0E0E0; font-size: 1.15rem; max-width: 850px; margin: 0 auto; line-height: 1.6; font-weight: 300;">
-        融合 <span style="color: #D4AF37; font-weight: 500;">RULA/REBA</span> 动态评估与 <span style="color: #D4AF37; font-weight: 500;">Squires</span> 作业面算法，<br>
+<div class="header-container">
+    <h1 class="header-title">传统大漆工艺 · 人机适配数字化系统</h1>
+    <div class="header-divider"></div>
+    <p class="header-subtitle">
+        融合 <span class="highlight">RULA/REBA</span> 动态评估与 <span class="highlight">Squires</span> 作业面算法，<br>
         为您量身定制精确至 0.5cm 的工位尺寸与功能落点布局。
     </p>
 </div>
@@ -103,7 +33,7 @@ st.markdown("""
 # 3. 参数录入
 # ==========================================
 st.markdown("### 📐 1. 作业者与场景参数")
-st.markdown('<div class="card">', unsafe_allow_html=True)
+st.markdown("<div class=\"card\">", unsafe_allow_html=True)
 col_a, col_b = st.columns([1, 2])
 with col_a:
     work_type = st.selectbox("🎯 核心工序", ["打磨工序 (侧重施力)", "装饰工序 (侧重视觉)"])
@@ -123,7 +53,7 @@ with col_b:
     with c5: S_a = st.number_input("肩宽", 300.0, 600.0, 419.0, step=5.0)
     with c6: F_a = st.number_input("手长(1/2)", 50.0, 150.0, 92.0, step=1.0)
     with c7: st.write("")
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
 # 4. 高度推算逻辑
@@ -150,8 +80,8 @@ st.markdown("### 🪑 2. 空间适配：关键尺寸与姿态参考")
 col_text, col_img = st.columns([1, 1.2])
 
 with col_text:
-    st.markdown('<div class="card" style="height: 420px;">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color:#8C1C13; margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;'>📊 推荐尺寸 (mm)</h4>", unsafe_allow_html=True)
+    st.markdown("<div class=\"card\" style=\"height: 420px;\">", unsafe_allow_html=True)
+    st.markdown("<h4 style=\'color:#8C1C13; margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;\'>📊 推荐尺寸 (mm)</h4>", unsafe_allow_html=True)
     st.markdown(f"""
     <div class="metric-container">
         <div class="metric-box"><div class="metric-title">最佳座椅高度</div><p class="metric-value">{int(h_chair_final)}</p></div>
@@ -202,7 +132,7 @@ with col_img:
             
             <rect x="90" y="{sy}" width="70" height="10" fill="#333" rx="2"/>
             <line x1="110" y1="{sy+10}" x2="110" y2="{gy}" stroke="#444" stroke-width="4"/>
-            <line x1="140" y1="{sy+10}" x2="140" y2="{gy}" stroke="#444" stroke-width="4"/>
+            <line x1="140" y1="{sy+10}" x2="140" y1="{gy}" stroke="#444" stroke-width="4"/>
             <path d="M 95 {sy} L 85 {sy-70}" stroke="#333" stroke-width="7" stroke-linecap="round"/>
             
             <circle cx="130" cy="{ey}" r="16" fill="#D4AF37"/> 
@@ -220,7 +150,7 @@ with col_img:
 # 6. 平面布局图生成 (带有 CAD 尺码标注的纯 SVG 渲染)
 # ==========================================
 st.markdown("### 🎯 3. XY轴：动态包络面与功能落点布局")
-st.markdown('<div class="card">', unsafe_allow_html=True)
+st.markdown("<div class=\"card\">", unsafe_allow_html=True)
 st.write("已加入 CAD 风格实时工程标注。拖动上方参数，下方尺寸界线与坐标点将自动重算并精确重绘。")
 
 if st.button("生成/刷新 布局动线解析图 (带工程尺码)", type="primary", use_container_width=True):
@@ -308,9 +238,9 @@ if st.button("生成/刷新 布局动线解析图 (带工程尺码)", type="prim
             return f"""
                 <g stroke="{color}" stroke-width="1.5">
                     <line x1="{sx1}" y1="{sy}" x2="{sx2}" y2="{sy}" />
-                    <line x1="{sx1}" y1="{sy-6}" x2="{sx1}" y2="{sy+6}" />
-                    <line x1="{sx2}" y1="{sy-6}" x2="{sx2}" y2="{sy+6}" />
-                    <text x="{(sx1+sx2)/2}" y="{sy-10}" fill="{color}" font-size="14" font-weight="bold" text-anchor="middle" stroke="none">{label} {x2-x1:.0f} mm</text>
+                    <line x1="{sx1}" y1="{sy-8}" x2="{sx1}" y2="{sy+8}" />
+                    <line x1="{sx2}" y1="{sy-8}" x2="{sx2}" y2="{sy+8}" />
+                    <text x="{(sx1+sx2)/2}" y="{sy-12}" fill="{color}" font-size="14" font-weight="bold" text-anchor="middle" stroke="none">{label} {x2-x1:.0f} mm</text>
                 </g>
             """
 
@@ -319,32 +249,32 @@ if st.button("生成/刷新 布局动线解析图 (带工程尺码)", type="prim
             sx = center_x + x * scale
             sy1 = base_y - y1 * scale
             sy2 = base_y - y2 * scale
-            text_x = sx - 12 if align == "left" else sx + 12
+            text_x = sx - 15 if align == "left" else sx + 15
             anchor = "end" if align == "left" else "start"
             return f"""
                 <g stroke="{color}" stroke-width="1.5">
                     <line x1="{sx}" y1="{sy1}" x2="{sx}" y2="{sy2}" />
-                    <line x1="{sx-6}" y1="{sy1}" x2="{sx+6}" y2="{sy1}" />
-                    <line x1="{sx-6}" y1="{sy2}" x2="{sx+6}" y2="{sy2}" />
+                    <line x1="{sx-8}" y1="{sy1}" x2="{sx+8}" y2="{sy1}" />
+                    <line x1="{sx-8}" y1="{sy2}" x2="{sx+8}" y2="{sy2}" />
                     <text x="{text_x}" y="{(sy1+sy2)/2 + 5}" fill="{color}" font-size="14" font-weight="bold" text-anchor="{anchor}" stroke="none">{label} {y2-y1:.0f} mm</text>
                 </g>
             """
 
         svg_content = f"""
-        <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid #F0E6D2; border-top: 5px solid #8C1C13; box-shadow: 0 4px 20px rgba(0,0,0,0.05); width: 100%; display: flex; justify-content: center; overflow-x: auto; padding: 20px 0;">
-            <svg width="{svg_w}" height="{svg_h}" viewBox="0 0 {svg_w} {svg_h}" xmlns="http://www.w3.org/2000/svg" style="font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', sans-serif;">
+        <div style="background: #FFFFFF; border-radius: 16px; border: 1px solid #F0E6D2; border-top: 6px solid #8C1C13; box-shadow: 0 4px 20px rgba(0,0,0,0.05); width: 100%; display: flex; justify-content: center; overflow-x: auto; padding: 20px 0;">
+            <svg width="{svg_w}" height="{svg_h}" viewBox="0 0 {svg_w} {svg_h}" xmlns="http://www.w3.org/2000/svg" style="font-family: \'Helvetica Neue\', Helvetica, \'PingFang SC\', \'Microsoft YaHei\', sans-serif;">
                 <defs>
                     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-                        <feOffset dx="2" dy="2" result="offsetblur" />
-                        <feComponentTransfer><feFuncA type="linear" slope="0.3" /></feComponentTransfer>
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="4" />
+                        <feOffset dx="3" dy="3" result="offsetblur" />
+                        <feComponentTransfer><feFuncA type="linear" slope="0.25" /></feComponentTransfer>
                         <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
                     </filter>
                 </defs>
                 
-                {"".join([f'<polygon points="{pts}" fill="#90EE90" fill-opacity="0.15" stroke="#4CAF50" stroke-width="1.5" stroke-dasharray="5,5" />' for pts in max_paths])}
+                {"".join([f'<polygon points="{pts}" fill="#90EE90" fill-opacity="0.1" stroke="#4CAF50" stroke-width="2" stroke-dasharray="8,4" />' for pts in max_paths])}
                 
-                {"".join([f'<polygon points="{pts}" fill="#ADD8E6" fill-opacity="0.4" stroke="#1f77b4" stroke-width="2" />' for pts in sq_paths])}
+                {"".join([f'<polygon points="{pts}" fill="#ADD8E6" fill-opacity="0.3" stroke="#1f77b4" stroke-width="2.5" />' for pts in sq_paths])}
 
                 {draw_dim_h(minx_max, maxx_max, maxy_max + 130, "最大作业区总宽", "#2E7D32")}
                 {draw_dim_v(maxx_max + 140, 0, maxy_max, "最大可及深度", "#2E7D32", "right")}
@@ -359,26 +289,26 @@ if st.button("生成/刷新 布局动线解析图 (带工程尺码)", type="prim
             cy = base_y - Y * scale
             svg_content += f"""
                 <g filter="url(#shadow)">
-                    <circle cx="{cx}" cy="{cy}" r="{R_zone_svg}" fill="{color}" fill-opacity="0.1" stroke="{color}" stroke-width="2" stroke-dasharray="4,4"/>
-                    <circle cx="{cx}" cy="{cy}" r="5" fill="{color}"/>
-                    <rect x="{cx - 55}" y="{cy - R_zone_svg - 45}" width="110" height="38" rx="4" fill="white" fill-opacity="0.9" stroke="{color}" stroke-width="1"/>
-                    <text x="{cx}" y="{cy - R_zone_svg - 28}" fill="{color}" font-size="13" font-weight="bold" text-anchor="middle">{label}</text>
-                    <text x="{cx}" y="{cy - R_zone_svg - 12}" fill="#555" font-size="11" text-anchor="middle">X:{X:.0f} Y:{Y:.0f}</text>
+                    <circle cx="{cx}" cy="{cy}" r="{R_zone_svg}" fill="{color}" fill-opacity="0.12" stroke="{color}" stroke-width="2.5" stroke-dasharray="6,4"/>
+                    <circle cx="{cx}" cy="{cy}" r="6" fill="{color}" stroke="white" stroke-width="2"/>
+                    <rect x="{cx - 60}" y="{cy - R_zone_svg - 48}" width="120" height="42" rx="6" fill="white" fill-opacity="0.95" stroke="{color}" stroke-width="1.5"/>
+                    <text x="{cx}" y="{cy - R_zone_svg - 28}" fill="{color}" font-size="14" font-weight="bold" text-anchor="middle">{label}</text>
+                    <text x="{cx}" y="{cy - R_zone_svg - 10}" fill="#555" font-size="12" text-anchor="middle">X:{X:.0f} Y:{Y:.0f}</text>
                 </g>
             """
 
         chest_y = base_y - (shoulder_y * scale)
         svg_content += f"""
-                <line x1="50" y1="{base_y}" x2="{svg_w - 50}" y2="{base_y}" stroke="#8C1C13" stroke-width="3" stroke-linecap="round" />
-                <text x="60" y="{base_y + 20}" fill="#8C1C13" font-size="13" font-weight="bold">工作台边缘 (Table Edge / Y=0)</text>
+                <line x1="50" y1="{base_y}" x2="{svg_w - 50}" y2="{base_y}" stroke="#8C1C13" stroke-width="4" stroke-linecap="round" />
+                <text x="60" y="{base_y + 25}" fill="#8C1C13" font-size="14" font-weight="bold">工作台边缘 (Table Edge / Y=0)</text>
 
-                <line x1="{center_x - 150}" y1="{chest_y}" x2="{center_x + 150}" y2="{chest_y}" stroke="#999" stroke-width="1.5" stroke-dasharray="4,4" />
-                <circle cx="{center_x}" cy="{chest_y}" r="6" fill="#121212" stroke="white" stroke-width="2" />
-                <text x="{center_x + 12}" y="{chest_y + 4}" fill="#121212" font-size="12" font-weight="bold">胸廓中心原点</text>
+                <line x1="{center_x - 180}" y1="{chest_y}" x2="{center_x + 180}" y2="{chest_y}" stroke="#999" stroke-width="2" stroke-dasharray="8,4" />
+                <circle cx="{center_x}" cy="{chest_y}" r="8" fill="#121212" stroke="white" stroke-width="2" />
+                <text x="{center_x + 15}" y="{chest_y + 5}" fill="#121212" font-size="14" font-weight="bold">胸廓中心原点</text>
             </svg>
         </div>
         """
 
         components.html(svg_content, height=svg_h + 30)
 
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
