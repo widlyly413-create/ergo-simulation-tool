@@ -25,6 +25,17 @@ def round_to_half_cm(value_mm):
     return round(value_mm / 5.0) * 5
 
 # ==========================================
+# 1. 初始化会话状态 (Session State)
+# ==========================================
+# 用于锁存点击确认按键后的计算结果，防止 Streamlit 刷新导致数据丢失
+if "calculated" not in st.session_state:
+    st.session_state.calculated = False
+    st.session_state.h_chair_final = 0.0
+    st.session_state.h_desk_final = 0.0
+    st.session_state.h_eye = 0.0
+    st.session_state.h_knee_clearance = 0.0
+
+# ==========================================
 # 2. 页面头部 (翻新版)
 # ==========================================
 st.markdown("""
@@ -53,7 +64,7 @@ with main_col_1:
     st.subheader("⚙️ 设施可调性")
     mode = st.selectbox("可调性模式", ["全自由调节", "仅座椅高度固定", "仅桌面高度固定"])
     
-    # 【动态输入框收纳区】根据可调性模式精确匹配，并在卡片内部动态渲染输入框
+    # 动态输入框收纳区
     h_chair_fixed = 450
     h_desk_fixed = 750
     if mode == "仅座椅高度固定":
@@ -82,99 +93,122 @@ with main_col_2:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# 4. 计算逻辑 (全字精准匹配修复)
+# 4. 核心控制按键与计算逻辑
 # ==========================================
-if mode == "全自由调节":
-    h_chair_final = round_to_half_cm(h_popliteal + 20)
-    h_desk_final = round_to_half_cm(h_chair_final + h_elbow + h_workpiece + offset)
-elif mode == "仅座椅高度固定":
-    h_chair_final = round_to_half_cm(h_chair_fixed)
-    h_desk_final = round_to_half_cm(h_chair_final + h_elbow + h_workpiece + offset)
-else:  # 仅桌面高度固定
-    h_desk_final = round_to_half_cm(h_desk_fixed)
-    h_chair_final = round_to_half_cm(h_desk_final - h_elbow - h_workpiece - offset)
+st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
 
-h_eye = round_to_half_cm(h_chair_final + 780) 
-h_knee_clearance = round_to_half_cm(h_popliteal + 60)
+# 引入核心确认触发按键
+if st.button("🚀 确认数据并执行人机精准解算", type="primary", use_container_width=True):
+    with st.spinner("正在锁定参数并进行人机工效学解算..."):
+        if mode == "全自由调节":
+            h_chair_calc = round_to_half_cm(h_popliteal + 20)
+            h_desk_calc = round_to_half_cm(h_chair_calc + h_elbow + h_workpiece + offset)
+        elif mode == "仅座椅高度固定":
+            h_chair_calc = round_to_half_cm(h_chair_fixed)
+            h_desk_calc = round_to_half_cm(h_chair_calc + h_elbow + h_workpiece + offset)
+        else:  # 仅桌面高度固定
+            h_desk_calc = round_to_half_cm(h_desk_fixed)
+            h_chair_calc = round_to_half_cm(h_desk_calc - h_elbow - h_workpiece - offset)
+
+        h_eye_calc = round_to_half_cm(h_chair_calc + 780) 
+        h_knee_calc = round_to_half_cm(h_popliteal + 60)
+        
+        # 将计算结果保存至 Session State 中锁死
+        st.session_state.h_chair_final = h_chair_calc
+        st.session_state.h_desk_final = h_desk_calc
+        st.session_state.h_eye = h_eye_calc
+        st.session_state.h_knee_clearance = h_knee_calc
+        st.session_state.calculated = True
+        st.toast("🎉 适配尺寸解算成功！已更新下方看板。", icon="✅")
 
 # ==========================================
 # 5. 结果显示 (Z轴与实时 SVG)
 # ==========================================
 st.markdown('<div class="section-title">🪑 空间适配结果</div>', unsafe_allow_html=True)
 
-res_col_1, res_col_2 = st.columns([1, 1.2], gap="large")
+# 检查是否进行过至少一次计算
+if st.session_state.calculated:
+    # 从状态中提取锁定的推荐数值
+    h_chair_final = st.session_state.h_chair_final
+    h_desk_final = st.session_state.h_desk_final
+    h_eye = st.session_state.h_eye
+    h_knee_clearance = st.session_state.h_knee_clearance
 
-with res_col_1:
-    st.markdown('<div class="card" style="height: 100%;">', unsafe_allow_html=True)
-    st.subheader("📊 推荐尺寸 (mm)")
-    
-    st.markdown(f"""
-    <div class="metric-container">
-        <div class="metric-box">
-            <div class="metric-title">座椅高度</div>
-            <div class="metric-value">{int(h_chair_final)}</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-title">桌面高度</div>
-            <div class="metric-value">{int(h_desk_final)}</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-title">视线参考</div>
-            <div class="metric-value">{int(h_eye)}</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-title">膝盖净空</div>
-            <div class="metric-value">{int(h_knee_clearance)}</div>
-        </div>
-    </div>
-    <div class="footer-hint">
-        💡 <b>专家建议：</b> 基于您的身体数据，座椅应设定为 {int(h_chair_final)}mm。这能确保您的双脚自然平放，减少下背部压力。
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    res_col_1, res_col_2 = st.columns([1, 1.2], gap="large")
 
-with res_col_2:
-    scale_z = 0.28
-    gy = 340 
-    sy = gy - (h_chair_final * scale_z)
-    dy = gy - (h_desk_final * scale_z)
-    ey = gy - (h_eye * scale_z)
-    ky = gy - (h_knee_clearance * scale_z)
-    wy = dy - (h_workpiece * scale_z)
+    with res_col_1:
+        st.markdown('<div class="card" style="height: 100%;">', unsafe_allow_html=True)
+        st.subheader("📊 推荐尺寸 (mm)")
+        
+        st.markdown(f"""
+        <div class="metric-container">
+            <div class="metric-box">
+                <div class="metric-title">座椅高度</div>
+                <div class="metric-value">{int(h_chair_final)}</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">桌面高度</div>
+                <div class="metric-value">{int(h_desk_final)}</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">视线参考</div>
+                <div class="metric-value">{int(h_eye)}</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">膝盖净空</div>
+                <div class="metric-value">{int(h_knee_clearance)}</div>
+            </div>
+        </div>
+        <div class="footer-hint">
+            💡 <b>专家建议：</b> 基于您的身体数据，座椅应设定为 {int(h_chair_final)}mm。这能确保您的双脚自然平放，减少下背部压力。
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    svg_html_z = f"""
-    <div style="background: white; border-radius: 16px; border: 1px solid rgba(140,28,19,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.05); width: 100%; height: 420px; display: flex; align-items: center; justify-content: center;">
-        <svg width="100%" height="400" viewBox="0 0 450 400" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <linearGradient id="deskGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style="stop-color:#8C1C13;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#5A120D;stop-opacity:1" />
-                </linearGradient>
-            </defs>
-            <line x1="30" y1="{gy}" x2="420" y2="{gy}" stroke="#333" stroke-width="4"/>
-            <line x1="50" y1="{gy}" x2="50" y2="{sy}" stroke="#999" stroke-width="2" stroke-dasharray="6,4"/>
-            <text x="55" y="{gy - 15}" fill="#666" font-size="12" font-family="sans-serif">椅高 {int(h_chair_final)}</text>
-            <line x1="400" y1="{gy}" x2="400" y2="{dy}" stroke="#8C1C13" stroke-width="2" stroke-dasharray="6,4"/>
-            <text x="325" y="{dy + 25}" fill="#8C1C13" font-size="13" font-family="sans-serif" font-weight="bold">桌高 {int(h_desk_final)}</text>
-            <line x1="20" y1="{gy}" x2="20" y2="{ey}" stroke="#D4AF37" stroke-width="2" stroke-dasharray="6,4"/>
-            <text x="25" y="{ey - 8}" fill="#B8962D" font-size="12" font-family="sans-serif">视高 {int(h_eye)}</text>
-            <rect x="250" y="{dy}" width="140" height="12" fill="url(#deskGrad)" rx="3"/>
-            <line x1="270" y1="{dy+12}" x2="270" y2="{gy}" stroke="#444" stroke-width="6"/>
-            <line x1="370" y1="{dy+12}" x2="370" y2="{gy}" stroke="#444" stroke-width="6"/>
-            <rect x="90" y="{sy}" width="70" height="10" fill="#333" rx="3"/>
-            <line x1="110" y1="{sy+10}" x2="110" y2="{gy}" stroke="#444" stroke-width="5"/>
-            <line x1="140" y1="{sy+10}" x2="140" y2="{gy}" stroke="#444" stroke-width="5"/>
-            <path d="M 95 {sy} L 85 {sy-70}" stroke="#333" stroke-width="8" stroke-linecap="round"/>
-            <circle cx="130" cy="{ey}" r="18" fill="#D4AF37" stroke="white" stroke-width="2"/> 
-            <path d="M 130 {ey+18} L 115 {sy}" stroke="#8C1C13" stroke-width="16" stroke-linecap="round" fill="none"/>
-            <path d="M 115 {sy} L 200 {sy}" stroke="#121212" stroke-width="14" stroke-linecap="round" fill="none"/> 
-            <path d="M 200 {sy} L 195 {gy}" stroke="#121212" stroke-width="12" stroke-linecap="round" fill="none"/>
-            <path d="M 130 {ey+22} L 155 {sy-25} L 285 {wy}" stroke="#D4AF37" stroke-width="10" stroke-linecap="round" fill="none" stroke-linejoin="round"/>
-            <circle cx="285" cy="{wy}" r="6" fill="#ff7f0e" stroke="white" stroke-width="2"/>
-        </svg>
-    </div>
-    """
-    components.html(svg_html_z, height=440)
+    with res_col_2:
+        scale_z = 0.28
+        gy = 340 
+        sy = gy - (h_chair_final * scale_z)
+        dy = gy - (h_desk_final * scale_z)
+        ey = gy - (h_eye * scale_z)
+        ky = gy - (h_knee_clearance * scale_z)
+        wy = dy - (h_workpiece * scale_z)
+
+        svg_html_z = f"""
+        <div style="background: white; border-radius: 16px; border: 1px solid rgba(140,28,19,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.05); width: 100%; height: 420px; display: flex; align-items: center; justify-content: center;">
+            <svg width="100%" height="400" viewBox="0 0 450 400" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="deskGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#8C1C13;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#5A120D;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <line x1="30" y1="{gy}" x2="420" y2="{gy}" stroke="#333" stroke-width="4"/>
+                <line x1="50" y1="{gy}" x2="50" y2="{sy}" stroke="#999" stroke-width="2" stroke-dasharray="6,4"/>
+                <text x="55" y="{gy - 15}" fill="#666" font-size="12" font-family="sans-serif">椅高 {int(h_chair_final)}</text>
+                <line x1="400" y1="{gy}" x2="400" y2="{dy}" stroke="#8C1C13" stroke-width="2" stroke-dasharray="6,4"/>
+                <text x="325" y="{dy + 25}" fill="#8C1C13" font-size="13" font-family="sans-serif" font-weight="bold">桌高 {int(h_desk_final)}</text>
+                <line x1="20" y1="{gy}" x2="20" y2="{ey}" stroke="#D4AF37" stroke-width="2" stroke-dasharray="6,4"/>
+                <text x="25" y="{ey - 8}" fill="#B8962D" font-size="12" font-family="sans-serif">视高 {int(h_eye)}</text>
+                <rect x="250" y="{dy}" width="140" height="12" fill="url(#deskGrad)" rx="3"/>
+                <line x1="270" y1="{dy+12}" x2="270" y2="{gy}" stroke="#444" stroke-width="6"/>
+                <line x1="370" y1="{dy+12}" x2="370" y2="{gy}" stroke="#444" stroke-width="6"/>
+                <rect x="90" y="{sy}" width="70" height="10" fill="#333" rx="3"/>
+                <line x1="110" y1="{sy+10}" x2="110" y2="{gy}" stroke="#444" stroke-width="5"/>
+                <line x1="140" y1="{sy+10}" x2="140" y2="{gy}" stroke="#444" stroke-width="5"/>
+                <path d="M 95 {sy} L 85 {sy-70}" stroke="#333" stroke-width="8" stroke-linecap="round"/>
+                <circle cx="130" cy="{ey}" r="18" fill="#D4AF37" stroke="white" stroke-width="2"/> 
+                <path d="M 130 {ey+18} L 115 {sy}" stroke="#8C1C13" stroke-width="16" stroke-linecap="round" fill="none"/>
+                <path d="M 115 {sy} L 200 {sy}" stroke="#121212" stroke-width="14" stroke-linecap="round" fill="none"/> 
+                <path d="M 200 {sy} L 195 {gy}" stroke="#121212" stroke-width="12" stroke-linecap="round" fill="none"/>
+                <path d="M 130 {ey+22} L 155 {sy-25} L 285 {wy}" stroke="#D4AF37" stroke-width="10" stroke-linecap="round" fill="none" stroke-linejoin="round"/>
+                <circle cx="285" cy="{wy}" r="6" fill="#ff7f0e" stroke="white" stroke-width="2"/>
+            </svg>
+        </div>
+        """
+        components.html(svg_html_z, height=440)
+else:
+    st.info("💡 请在上方检查并微调您的身体静态尺寸与工艺参数。确认无误后，点击上方的 **【🚀 确认数据并执行人机精准解算】** 蓝绿色按钮，即可获取量身定制的工位高度与适配数据。")
 
 # ==========================================
 # 6. 平面布局图 (XY轴)
