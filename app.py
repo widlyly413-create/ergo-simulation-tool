@@ -53,6 +53,14 @@ with main_col_1:
     st.subheader("⚙️ 设施可调性")
     mode = st.selectbox("可调性模式", ["全自由调节", "仅座椅高度固定", "仅桌面高度固定"])
     
+    # 【动态输入框收纳区】根据可调性模式精确匹配，并在卡片内部动态渲染输入框
+    h_chair_fixed = 450
+    h_desk_fixed = 750
+    if mode == "仅座椅高度固定":
+        h_chair_fixed = st.number_input("当前座椅高度 (mm)", 300, 600, 450, step=5)
+    elif mode == "仅桌面高度固定":
+        h_desk_fixed = st.number_input("当前桌面高度 (mm)", 500, 1200, 750, step=5)
+    
     st.subheader("📦 工件高度")
     h_workpiece = st.slider("工件作业点高度 (mm)", 0, 500, 50, step=5)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -74,17 +82,15 @@ with main_col_2:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# 4. 计算逻辑
+# 4. 计算逻辑 (全字精准匹配修复)
 # ==========================================
-if "全自由" in mode:
+if mode == "全自由调节":
     h_chair_final = round_to_half_cm(h_popliteal + 20)
     h_desk_final = round_to_half_cm(h_chair_final + h_elbow + h_workpiece + offset)
-elif "座椅固定" in mode:
-    h_chair_fixed = st.number_input("当前座椅高度 (mm)", 300, 600, 450, step=5)
+elif mode == "仅座椅高度固定":
     h_chair_final = round_to_half_cm(h_chair_fixed)
     h_desk_final = round_to_half_cm(h_chair_final + h_elbow + h_workpiece + offset)
-else:
-    h_desk_fixed = st.number_input("当前桌面高度 (mm)", 500, 1200, 750, step=5)
+else:  # 仅桌面高度固定
     h_desk_final = round_to_half_cm(h_desk_fixed)
     h_chair_final = round_to_half_cm(h_desk_final - h_elbow - h_workpiece - offset)
 
